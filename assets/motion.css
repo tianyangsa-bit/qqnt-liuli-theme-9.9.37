@@ -169,7 +169,7 @@ body .aio .chat-input-area {
 }
 body .aio .chat-input-area:focus-within {
   box-shadow: 0 0 0 1px rgba(var(--ll-brand-rgb), 0.28),
-    0 0 18px rgba(var(--ll-brand-rgb), calc(var(--ll-glow-strength, 0.15) * 0.9 + 0.08)),
+    0 0 8px rgba(var(--ll-brand-rgb), calc(var(--ll-glow-strength, 0.15) * 0.9 + 0.08)),
     var(--ll-shadow) !important;
 }
 
