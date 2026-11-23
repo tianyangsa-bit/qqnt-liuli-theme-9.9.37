@@ -49,9 +49,10 @@
  * 在壁纸上只有一条极淡的描边，完全看不出是卡片。
  * ════════════════════════════════════════════════════════════ */
 .forward-msg {
-  background: rgba(var(--ll-acrylic), calc(var(--ll-material-opacity) + 0.14)) !important;
-  backdrop-filter: blur(14px) saturate(1.4) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
+  background: rgba(var(--ll-acrylic), calc(var(--ll-material-opacity) + 0.2)) !important;
+  /* 转发卡片会和气泡一样在聊天区里成群出现，不挂模糊。 */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 1px solid rgba(var(--ll-tint-rgb), 0.1) !important;
   border-radius: var(--ll-radius-sm) !important;
   padding: 10px 12px !important;
