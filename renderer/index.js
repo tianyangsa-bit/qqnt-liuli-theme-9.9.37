@@ -269,9 +269,16 @@ const GLASS = [
     // 会让内部的 .msg-input（ProseMirror 编辑器）完全不绘制 ——
     // 表现就是"输入框消失、点了没反应"。输入区背景改由 input-bar.css 提供。
     [".right-sidebar", "var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-material-opacity))"],
-    [".group-box", "var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-material-opacity))"],
+    // .group-box（群公告 + 群成员，180x800）本就在这里挂了模糊，而它嵌在
+    // .right-sidebar 里 —— 两层 backdrop-filter 叠加，成员列表的每一下 hover
+    // 都要等两层重新模糊。它改由 GLASS_FLAT 只上底色。
     // 左下角资料卡；必须排除 .topbar-profile（顶部同名元素宽 1797px）
     [".user-profile-card:not(.topbar-profile)", "var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-material-opacity))"]
+];
+/* 只要底色、不挂模糊：嵌套在别的玻璃层里的面板，或者内容会频繁重绘的表面。
+ * 外层已经把壁纸模糊过了，内层再来一层纯属浪费。 */
+const GLASS_FLAT = [
+    [".group-box", "var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-material-opacity))"]
 ];
 const CLEAR = [
     ".message-panel", ".container-content-view", ".two-col-layout",
@@ -350,11 +357,16 @@ const TEXT_SELECTORS = [
     ".contact-name", ".summary-main"
 ];
 
+/* 和 normalizeColors 一样用 WeakSet 记账：颜色正常的节点只检查一次。
+ * 以前只给"命中"的节点打标记，没命中的每 8 秒都要重新 getComputedStyle ——
+ * 两栏列表里的 .text-ellipsis 有几百个，这一轮读样式纯属白烧。 */
+const llContrastSeen = new WeakSet();
 function fixContrast() {
     try {
         for (const sel of TEXT_SELECTORS) {
             document.querySelectorAll(sel).forEach(el => {
-                if (el.dataset.liuliFg) return;
+                if (el.dataset.liuliFg || llContrastSeen.has(el)) return;
+                llContrastSeen.add(el);
                 const color = getComputedStyle(el).color.replace(/\s+/g, " ").trim();
                 if (!DIM_COLORS.has(color)) return;
                 el.dataset.liuliFg = "1";
@@ -373,6 +385,16 @@ function applyOverrides() {
                 el.style.setProperty("background", bg, "important");
                 el.style.setProperty("backdrop-filter", "var(--ll-material-blur)", "important");
                 el.style.setProperty("-webkit-backdrop-filter", "var(--ll-material-blur)", "important");
+                el.style.setProperty("border-radius", "var(--ll-radius)", "important");
+            });
+        }
+        for (const [sel, bg] of GLASS_FLAT) {
+            document.querySelectorAll(sel).forEach(el => {
+                if (el.dataset.liuliGlassFlat) return;
+                el.dataset.liuliGlassFlat = "1";
+                el.style.setProperty("background", bg, "important");
+                el.style.setProperty("backdrop-filter", "none", "important");
+                el.style.setProperty("-webkit-backdrop-filter", "none", "important");
                 el.style.setProperty("border-radius", "var(--ll-radius)", "important");
             });
         }
@@ -405,8 +427,11 @@ function ensureStyle() {
 }
 
 const SETTINGS_KEY = SLUG;
+/* 18px 是早期默认。四个承载层同时 18px 时 GPU 已经排满，鼠标悬浮要排在
+ * 模糊后面，反馈肉眼可见地慢 —— 默认降到 9px，老配置里的 18 一并迁移。 */
+const OLD_DEFAULT_BLUR = 18;
 const DEFAULT_SETTINGS = {
-    blur: 18, opacity: 0.5, glow: 0.15, shadow: 0.6,
+    blur: 9, opacity: 0.5, glow: 0.15, shadow: 0.6,
     // 壁纸遮罩（需求 A）：亮色 / 暗色主题各一份浓度，外加各自的遮罩颜色
     //   veilX = "light" → 盖一层白；veilX = "dark" → 盖一层黑
     dimLight: 0.18, dimDark: 0.18,
@@ -431,6 +456,9 @@ function llMigrateSettings(raw) {
     delete out.dim;
     if (out.veilLight !== "light" && out.veilLight !== "dark") out.veilLight = "light";
     if (out.veilDark !== "light" && out.veilDark !== "dark") out.veilDark = "dark";
+    /* 存着 18 说明从来没动过滑条（那就是老默认），跟着新默认走。
+     * 用户自己选过的其它数值原样保留。 */
+    if (Number(out.blur) === OLD_DEFAULT_BLUR) out.blur = DEFAULT_SETTINGS.blur;
     return out;
 }
 
@@ -540,7 +568,7 @@ function llApplyModeSettings() {
 function applySettings(cfg, broadcast) {
     const b = document.body;
     llModeCfg = llNormalizeSettings(cfg);
-    b.style.setProperty("--ll-material-blur", "blur(" + llModeCfg.blur + "px) saturate(1.6)");
+    b.style.setProperty("--ll-material-blur", "blur(" + llModeCfg.blur + "px) saturate(1.35)");
     b.style.setProperty("--ll-material-opacity", String(llModeCfg.opacity));
     b.style.setProperty("--ll-glow-strength", String(llModeCfg.glow));
     llApplyModeSettings();
@@ -1366,22 +1394,38 @@ function llGroupMembersPass() {
 
 /* 两个列表的节点增删（滚动、换群、换会话）同步处理：
  * MutationObserver 回调在绘制前执行，新行第一帧就带着标记。 */
-var llSideRaf = 0;
+/* 侧栏 observer 只关心群成员 / 会话列表 / 左栏内部。
+ * 但群成员列表的 hover 会让 QQ 反复插入删除行内节点（tooltip、状态标记），
+ * 每一批都跑一遍 llGroupMembersPass：遍历所有成员行、算管理块、再回扫
+ * 60 条消息算「最近发言者」。列表越长越慢，hover 反馈就一直排在后面。
+ * 现在整条链最多 250ms 一次，末尾补跑，肉眼分辨不出，CPU 差一个量级。 */
+var llSideRaf = 0, llSideTimer = 0, llSideLast = 0;
+function llSideRun() {
+    llSideTimer = 0;
+    llSideLast = performance.now();
+    try { llWatchContactList(); llGroupMembersPass(); } catch (e) {}
+}
+function llSideSchedule() {
+    if (llSideRaf || llSideTimer) return;
+    var wait = 250 - (performance.now() - llSideLast);
+    if (wait < 0) wait = 0;
+    llSideRaf = requestAnimationFrame(function () {
+        llSideRaf = 0;
+        if (wait > 0) llSideTimer = setTimeout(llSideRun, wait);
+        else llSideRun();
+    });
+}
 function installSideListObserver() {
     if (window.__liuliSideObs) return;
     var obs = new MutationObserver(function (recs) {
-        var hit = false;
-        for (var i = 0; i < recs.length && !hit; i++) {
+        for (var i = 0; i < recs.length; i++) {
             var t = recs[i].target;
             if (t && t.nodeType !== 1) t = t.parentElement;
-            if (t && t.closest && t.closest(".group-member, .recent-contact, .two-col-layout__aside")) hit = true;
+            if (t && t.closest && t.closest(".group-member, .recent-contact, .two-col-layout__aside")) {
+                llSideSchedule();
+                return;
+            }
         }
-        if (!hit || llSideRaf) return;
-        // 合并到一帧：选人对话框等一次挂几千个节点时不会被触发成百上千次
-        llSideRaf = requestAnimationFrame(function () {
-            llSideRaf = 0;
-            try { llWatchContactList(); llGroupMembersPass(); } catch (e) {}
-        });
     });
     obs.observe(document.body, { childList: true, subtree: true });
     window.__liuliSideObs = obs;
@@ -1454,6 +1498,10 @@ function installMessageObserver() {
     if (window.__liuliMsgObs) return;
     var busy = false;
     function touchesMessages(rec) {
+        /* 只看真正的节点增删。属性改动、空记录也会进来（QQ 悬停插时间戳、
+         * 输入框内重排），那些不需要重跑消息分组。 */
+        if (rec.type !== "childList") return false;
+        if (!rec.addedNodes.length && !rec.removedNodes.length) return false;
         var t = rec.target;
         if (t && t.nodeType !== 1) t = t.parentElement;
         if (t && t.closest && t.closest(".chat-msg-area")) return true;
@@ -1704,6 +1752,134 @@ function markQuoteRoots() {
             if (roots[j].dataset.liuliQuoteRoot !== "1") roots[j].dataset.liuliQuoteRoot = "1";
         }
     } catch (e) { /* 静默 */ }
+}
+
+
+/* ---------- 列表滑翔高亮 ----------
+ * 原来每个列表项各自 background 淡入淡出：鼠标从一行移到下一行，是「上一行原地
+ * 消失、下一行原地出现」。这里改成一块共享高亮跟着指针在行间平移：
+ *   - 同一列表内：transform + width/height 连续滑动（170ms）
+ *   - 跨列表（会话列表 → 群成员）：直接跳位淡入，不做长距离飞行
+ *   - 滚动列表时先隐藏，停手 140ms 后用 elementFromPoint 找回指针下的行
+ * 只用一个 body 级 fixed 层，不碰任何 QQ 节点，Vue 重渲染无感。
+ */
+var GLIDE_SEL = ".recent-contact-item, .group-user, .q-context-menu-item, .nav-item";
+function installHoverGlide() {
+    if (window.__llGlide) return;
+    window.__llGlide = true;
+    var el = document.getElementById("liuli-glide");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "liuli-glide";
+        document.body.appendChild(el);
+    }
+    document.body.dataset.liuliGlide = "1";
+
+    var cur = null, lastX = -1, lastY = -1, hideTimer = 0, outTimer = 0;
+    var lastTop = -1, lastLeft = -1;
+
+    function matchGlide(node) {
+        if (!node || node.nodeType !== 1) return null;
+        var item = node.closest ? node.closest(GLIDE_SEL) : null;
+        if (!item) return null;
+        if (item.closest(".viewport-list__measure")) return null;
+        if (item.classList.contains("recent-contact-item")) return { item: item, tone: "brand", r: 12 };
+        if (item.classList.contains("group-user")) {
+            var c = item.querySelector(".group-user__content") || item;
+            return { item: c, tone: "brand", r: 8 };
+        }
+        if (item.classList.contains("q-context-menu-item")) return { item: item, tone: "brand-strong", r: 8 };
+        if (item.classList.contains("nav-item")) return { item: item, tone: "tint", r: 10 };
+        return null;
+    }
+
+    function scopeOf(item) {
+        return item.closest(".recent-contact, .group-member, .q-context-menu, .nav-bar, .setting-tab, .contact-list")
+            || document.body;
+    }
+
+    function place(hit, jump) {
+        var r = hit.item.getBoundingClientRect();
+        if (r.width < 4 || r.height < 4) { hide(); return; }
+        if (jump) el.classList.add("ll-glide-jump");
+        /* 位移越大给的时间越长：会话列表一行 60px，固定 170ms 看起来像瞬移。 */
+        if (!jump && lastTop >= 0) {
+            var span = Math.abs(r.top - lastTop) + Math.abs(r.left - lastLeft) * 0.5;
+            el.style.setProperty("--ll-glide-ms", Math.round(Math.min(280, 150 + span * 1.4)) + "ms");
+        }
+        lastTop = r.top;
+        lastLeft = r.left;
+        el.dataset.tone = hit.tone;
+        el.style.borderRadius = hit.r + "px";
+        el.style.transform = "translate3d(" + Math.round(r.left) + "px," + Math.round(r.top) + "px,0)";
+        el.style.width = Math.round(r.width) + "px";
+        el.style.height = Math.round(r.height) + "px";
+        el.style.opacity = "1";
+        if (jump) {
+            void el.offsetWidth;   // 这一帧不要动画，跳位后下一帧再恢复过渡
+            requestAnimationFrame(function () { el.classList.remove("ll-glide-jump"); });
+        }
+    }
+
+    function show(hit) {
+        var jump = !!cur && scopeOf(cur) !== scopeOf(hit.item);
+        cur = hit.item;
+        place(hit, jump);
+    }
+    function hide() {
+        cur = null;
+        el.style.opacity = "0";
+    }
+
+    /* 会话列表的行只有 1px margin：指针扫过去会「先出后进」。
+     * 立刻 hide 会让高亮在每次换行时闪一下，看着又变回「原地出现 / 消失」。
+     * 留 60ms 宽限，期间进入新行就继续滑。 */
+    function scheduleHide() {
+        if (outTimer) return;
+        outTimer = setTimeout(function () { outTimer = 0; hide(); }, 60);
+    }
+    function cancelHide() {
+        if (outTimer) { clearTimeout(outTimer); outTimer = 0; }
+    }
+
+    document.addEventListener("pointerover", function (e) {
+        var hit = matchGlide(e.target);
+        if (!hit) { scheduleHide(); return; }
+        cancelHide();
+        if (hit.item === cur) return;
+        show(hit);
+    }, true);
+
+    document.addEventListener("pointerout", function (e) {
+        if (!cur) return;
+        var next = e.relatedTarget ? matchGlide(e.relatedTarget) : null;
+        if (next && next.item === cur) return;
+        if (next) { cancelHide(); show(next); return; }
+        scheduleHide();
+    }, true);
+
+    document.addEventListener("pointermove", function (e) {
+        lastX = e.clientX; lastY = e.clientY;
+    }, { capture: true, passive: true });
+
+    document.addEventListener("scroll", function () {
+        if (!cur) return;
+        hide();
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
+            hideTimer = 0;
+            if (lastX < 0) return;
+            var n = document.elementFromPoint(lastX, lastY);
+            var hit = n && matchGlide(n);
+            if (hit) show(hit);
+        }, 140);
+    }, { capture: true, passive: true });
+
+    document.documentElement.addEventListener("mouseleave", hide);
+    window.addEventListener("blur", hide);
+    window.addEventListener("resize", hide);
+    setInterval(function () { if (cur && !cur.isConnected) hide(); }, 500);
+
 }
 
 /* 把面板的控件构建到任意容器里（内嵌与浮层共用同一套逻辑） */
@@ -3251,9 +3427,26 @@ async function initPanel() {
 
     const started = Date.now();
     installRouteScope();
+    /* QQ 9.9.37：截图 / 隐藏窗口 / 空白壳窗口不注入任何主题资源。
+     * 截图窗口是一张铺满屏幕的透明覆盖层，把 16 个 CSS、壁纸层和
+     * backdrop-filter 一起塞进去，截图取词和拖动选框会直接掉帧。
+     * 这些窗口没有主题需求（截图只显示屏幕内容本身）。 */
+    const llHref = location.href;
+    if (/screenshot\.html|hiddenWindow\.html|about:blank/i.test(llHref)
+        || (innerWidth < 120 && innerHeight < 120)) {
+        return;
+    }
+    /* 设置页只需要面板与 token：主窗口的布局、气泡、消息动效在这用不上，
+     * 16 份 CSS（大量 :has）叠在设置窗口上正是它卡顿的主因。 */
+    const SETTING_FILES = new Set([
+        "qq-tokens.css", "palette.css", "liuli.css", "typography.css",
+        "panel.css", "settings-page.css", "details.css", "no-dividers.css", "layout-custom.css"
+    ]);
+    const llScopeNameNow = document.body.dataset.liuliScope;
+    const cssFiles = llScopeNameNow === "setting" ? FILES.filter(f => SETTING_FILES.has(f)) : FILES;
     try {
         const chunks = [];
-        for (const file of FILES) {
+        for (const file of cssFiles) {
             // wallpaper.css 是可选的本地默认壁纸（不随仓库发布），没有就跳过
             try { chunks.push(await loadText(file)); }
             catch (e) { if (!OPTIONAL_FILES.has(file)) throw e; }
@@ -3312,6 +3505,7 @@ async function initPanel() {
         installMarkdownObserver();
         installAvatarStick();
         ensureHoverEntries();
+        installHoverGlide();
         forceNoDrag();
         installMessageObserver();
         installSideListObserver();
