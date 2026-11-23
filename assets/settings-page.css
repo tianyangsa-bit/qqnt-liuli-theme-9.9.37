@@ -15,9 +15,10 @@
    * 改不到设置页（之前这里写死 0.66，拖动滑条这个页面纹丝不动）。
    * +0.16 是给壁纸亮度留的一点余量，保证浅色文字可读。 */
   /* 必须与主界面的承载层用同一个 alpha，否则同一个滑条在两处观感不同 */
-  background: rgba(var(--ll-acrylic), var(--ll-material-opacity)) !important;
-  backdrop-filter: var(--ll-material-blur) !important;
-  -webkit-backdrop-filter: var(--ll-material-blur) !important;
+  background: rgba(var(--ll-acrylic), max(var(--ll-material-opacity), 0.9)) !important;
+  /* 不挂模糊：这一层铺满整个设置窗口，内容又是长列表，滚动时模糊跟着重算。 */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* 2. 内部：全部透明，去掉叠玻璃 */
