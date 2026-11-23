@@ -1,113 +1,149 @@
-# 琉璃 · QQNT 9.9.37 适配版
+# LiteLoaderQQNT · QQNT 9.9.37 适配版
 
-> 上游：[LilycleHeart/qqnt-liuli-theme](https://github.com/LilycleHeart/qqnt-liuli-theme)（`liteloader` 分支，v1.3.5）
-> 这是把同一份主题适配到 **QQNT 9.9.37-54395 / Electron 40.0.0 / Node.js 24.11.1** 的修复版。
+把 [LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT) 1.4.1 移到 **QQNT 9.9.37-54395 / Electron 40.0.0 / Node.js 24.11.1** 上。
 
-琉璃主题本体没有改动设计：MCU 壁纸取色、磨砂玻璃、TG/TIM 气泡、Markdown、@ 高亮、级联入场、布局自定义全部保留。下面的改动只解决新版 QQ 上的可用性问题。
+配套的琉璃主题适配见：[tianyangsa-bit/qqnt-liuli-theme-9.9.37](https://github.com/tianyangsa-bit/qqnt-liuli-theme-9.9.37)
 
-## 适配环境
+## 两个拦路的东西
 
-| 组件 | 版本 |
-|---|---|
-| QQNT | 9.9.37-54395（Windows x64） |
-| Electron | 40.0.0 |
-| Node.js | 24.11.1 |
-| Chromium | 144.0.7559.60 |
-| LiteLoaderQQNT | 1.4.1（需带 9.9.37 文件校验绕过） |
+### 1. package.json 的 RSA 签名校验（`error code v2:-8`）
 
-## 修复内容
+`resources/app/application.json` 给 `package.json` / `application.asar` / `wrapper.node` / `major.node` 各挂一个 256 字节 RSA-2048 签名。改 `main` 之后启动器打印：
 
-### 1. 消息气泡过大
-
-`assets/bubbles.css`
-
-- 气泡内边距 `8px 13px` → `6px 10px`；
-- 移除 `.message-container` 的 `min-height: 44px` 与 `.msg-content-container` 的 `min-height: 36px`。
-
-这两条 `min-height` 原本是为了"头像不孤立"加的下限，但 QQ 9.9.37 的单行气泡本身有内边距，下限叠加后一行文字被撑成 44px 高的胶囊，视觉上比文字大出好几圈。
-
-### 2. 自己的消息离头像太远
-
-`assets/bubbles.css`
-
-实测行上的实际间距是「grid 模板间隙 + QQ 自己的 column-gap」叠加，光改模板不够：
-
-```css
-.message-container {
-  column-gap: 0 !important;       /* 关掉 QQ 自带的那份 */
-}
-.message-container:has(.msg-content-container.container--others) {
-  grid-template-columns: 0px 32px 2px minmax(0, 1fr) 0px 0px !important;
-}
-.message-container:has(.msg-content-container.container--self) {
-  grid-template-columns: 0px minmax(0, 1fr) 2px auto 32px 0px !important;
-}
-.message-container > [class*="avatar"] {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
+```
+ac12d1b1…（package.json 的 SHA-256）
+error code v2:-8
 ```
 
-### 3. 悬浮窗口中，右上角窗口按钮只有下半截能点
+进程直接退出。校验代码不在 `QQ.exe`（老版 `QQNTFileVerifyPatch` 的目标），在 **`QQNT.dll` 的 `.text` 段**：
 
-`renderer/index.js` + `assets/layout-custom.css`
+```
+0x1805116F7  mov  rsi, rcx
+0x1805116F7  mov  rdx, [rcx]
+0x1805116FD  mov  r8,  [rcx+8]
+0x180511701  sub  r8,  rdx
+0x180511704  mov  rcx, [rcx+0x18]
+0x180511708  call <compare>          ← 把这一条打成 mov eax,1
+0x18051170D  mov  edi, eax
+…
+0x18051174E  cmp  edi, 1
+0x180511751  sete al
+```
 
-QQ 9.9.37 的窗口顶部约 36px 被它自己的 `draggable-view` 标成 `-webkit-app-region: drag`。Electron 的命中测试在 drag 区域里**不派发鼠标事件**，胶囊即使自己写了 `no-drag`，落在整块拖动区里也点不动 —— 表现就是只有最底下露出拖动区的那几像素能点。
+`QQNT.dll` 有 ACL 保护，改不了磁盘文件；`QQ.exe` 也写不了。但版本目录可写，且 `QQNT.dll` 静态导入 `VERSION.dll` —— 用同名代理 DLL，在它被加载时扫描 `.text`、内存里把 `call` 换成 `mov eax,1`。
 
-修复：
+### 2. Node 24 删掉了 `Dirent.prototype.path`
 
-- 胶囊展开期间（`state.l || state.r`），`syncTopDrag()` 把这些顶部拖动层临时改成内联 `-webkit-app-region: no-drag`；收起时还原为 `drag`。平时仍可拖窗口，展开时整块按钮可点；
-- 胶囊 `z-index` 抬到 `99999`，每个子元素显式 `no-drag`，避免子级把父级挖出的洞又堵回去。
+`LiteLoaderQQNT/src/main/store.js` 的 `scanPluginDirectory()`：
 
-### 4. 未选中会话时完全没反应
+```js
+.map(dirent => path.join(dirent.path, dirent.name, "manifest.json"))
+```
 
-`renderer/index.js` 新增 `forceNoDrag()`，`assets/layout-custom.css` 加 CSS 兜底。
+Node 24 里 `dirent.path` 是 `undefined`，直接抛：
 
-空状态下 QQ 把 `.empty-panel`（1094×835）和 `.empty-panel_head`（1094×58）整块标成 `-webkit-app-region: drag`，而且是**内联 `!important`** —— 外部样式表覆盖不掉，等于整个空聊天区不接收任何鼠标事件，悬浮胶囊既唤不出也点不到。
+```
+TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+```
 
-`forceNoDrag()` 在启动时与兜底轮询里用内联 `!important` 反写这两个节点的 `-webkit-app-region`。
+主进程崩在启动阶段。改成：
 
-### 5. 性能
+```js
+.map(dirent => path.join(dirent.parentPath ?? dirent.path ?? LiteLoader.path.plugins, dirent.name, "manifest.json"))
+```
 
-`renderer/index.js`
+`parentPath` 是 Node 20.12+ 的字段，保留 `dirent.path` 回退兼容旧 Node。
 
-| 位置 | 原值 | 现在 |
-|---|---|---|
-| 路由同步 `setInterval(sync, …)` | 400ms | 1200ms |
-| 全量样式/DOM 兜底 pass | 1500ms | 拆成 2s 轻活 + 8s 重活 |
-| 壁纸 revision 轮询 | 1500ms | 3000ms |
-| `mousemove` | 每次都执行 | `requestAnimationFrame` 节流，每帧最多一次 |
-| 设置页 `refreshErrors / refreshInfo` | 3000ms | 5000ms |
-| 兜底 pass 作用域 | 所有窗口（含设置页） | 仅 `data-liuli-scope="main"` |
+## version.dll 做了什么
 
-设置页卡顿的主要来源是那套全页扫描在 `#/setting` 窗口里也照跑 —— 设置窗口本身 DOM 更重，扫描一次就掉帧。现在两个兜底定时器都先检查 `liuliScope === "main"`，设置页只剩自己的组件刷新。
+`proxy/version_proxy.cpp`，编译产物就是仓库根目录的 `version.dll`：
 
-原来的 1500ms 定时器每次会跑 `applyOverrides / fixContrast / normalizeColors / groupMessages / stickAvatars / markQuoteRoots / moveSenderIntoBubble / llWatchContactList / llGroupMembersPass / llMarkdownPass / llLayoutPass` 一整套全页扫描。QQ 9.9.37 的 DOM 节点数量比 9.9.36 明显更多，这套扫描是启动后持续掉帧的主要来源。
+1. `DllMain` 里确认 `QQNT.dll` 已映射，解析它的 PE 段表，取 `.text`；
+2. 扫描 `QQNTFileVerifyPatch` 的 x64 特征码：
 
-消息区的即时处理本来就有 `MutationObserver` 覆盖，定时器只做兜底，所以重活降到 8s 一次不会影响新消息的样式时机。
+   ```
+   48 89 CE 48 8B 11 4C 8B 41 08 49 29 D0 48 8B 49 18 E8
+   ```
+
+3. 命中后把末尾的 `E8`（`call`）原地改写成 `B8 01 00 00 00`（`mov eax,1`），`VirtualProtect` 改回原保护，`FlushInstructionCache`；
+4. 三个导出 `GetFileVersionInfoSizeW` / `GetFileVersionInfoW` / `VerQueryValueW` 转发到 `System32\version.dll`，QQ 的版本查询不受影响。
+
+只改运行时内存，磁盘上的 `QQNT.dll` 不动。日志写在 `%LOCALAPPDATA%\LiteLoaderQQNT\patch.log`：
+
+```
+[proxy] attached pid=12580
+[proxy] patched verifier at ... (rva 0x5116F7)
+```
+
+特征码没找到时写 `verification signature NOT FOUND` 并放行，安装器会在安装前先扫一遍 QQNT.dll 给出警告。
 
 ## 安装
 
-1. 先把 LiteLoaderQQNT 装到 QQ 9.9.37 上（需要文件校验绕过，否则改 `package.json` 会被 `error code v2:-8` 拦下）；
-2. 把本仓库整个目录放到：
+1. 完全退出 QQ（含托盘图标）。
+2. 双击 `install.bat`；如果提示无写入权限，右键以管理员身份运行。
+3. 启动 QQ。
 
+安装脚本：
+
+- 从 `versions\config.json` 的 `curVersion` 定位当前版本目录；
+- 扫 `QQNT.dll` 的特征码，找不到时警告"该版本尚未适配"并让你确认；
+- 备份 `package.json` → `package.json.llqqnt.bak`（只备份一次）；
+- 部署 `LiteLoaderQQNT\` 到 `resources\app\`；
+- `package.json` 的 `main` 改写为 `./LiteLoaderQQNT/src/main.js`，其余字段原样保留，写无 BOM UTF-8；
+- 部署 `version.dll` 到 `versions\<ver>\`。
+
+## 卸载
+
+完全退出 QQ，双击 `uninstall.bat`：
+
+- 从备份恢复 `package.json`（仅当它仍指向 LiteLoader）；
+- 删除 `version.dll`；
+- `LiteLoaderQQNT\` 改名为 `LiteLoaderQQNT.uninstalled-<时间戳>`，插件与配置保留。
+
+## QQ 自动更新之后
+
+hotUpdate 会解压出新的 `versions\<new-version>\` 并切换 `config.json` 的 `curVersion`。新目录里没有 `version.dll`，`package.json` 也是原版 —— 重新跑一次 `install.bat`。
+
+如果 QQ 改了校验函数结构，安装器的特征码扫描会先报警，不会让你装完打不开。
+
+## 自己编译 version.dll
+
+需要 Visual Studio 2022 BuildTools（x64）：
+
+```bat
+cd proxy
+build.bat
 ```
-<QQ安装目录>/versions/<版本>/resources/app/LiteLoaderQQNT/plugins/liuli-dsh-theme/
-```
 
-3. 重启 QQ，设置 → 琉璃 里配置壁纸与配色。
+输出 `version.dll`，导出表：`GetFileVersionInfoSizeW`、`GetFileVersionInfoW`、`VerQueryValueW`，外加三个 `Proxy_*` 转发实现。
 
-目录名必须是 `liuli-dsh-theme`（与 `manifest.json` 的 `slug` 一致），否则 `local://profile/plugins/<slug>/assets/` 的样式/图片会 404。
+## 验证
+
+- `%LOCALAPPDATA%\LiteLoaderQQNT\patch.log` 里出现 `patched verifier at ... (rva 0x5116F7)`；
+- QQ 正常登录；
+- 设置页左侧出现 **LiteLoaderQQNT** 标签，版本栏显示 LiteLoader 1.4.1 / QQNT 9.9.37-54395 / Electron 40.0.0 / Node.js 24.11.1。
 
 ## 已知限制
 
-- 只在 9.9.37-54395 上实测；同系列小版本大概率通用。
-- 气泡与头像的 4px 间距是肉眼调的值，觉得太紧可以把 `assets/bubbles.css` 里两处 `4px` 改回 `6px/8px`。
-- 顶部胶囊下移到 14px 后，视觉上离窗口上沿比原版多一点空隙；这是为了避开非客户区，换来的整块可点击。
-- 空会话面板改成 `no-drag` 后，不能再用空聊天区拖动窗口，标题栏仍然可以拖。
-- 主题的磨砂玻璃是整窗 `backdrop-filter: blur()`，核显/低端独显在 2K 以上窗口依然会掉帧，这是材质本身的成本，可以在 设置 → 琉璃 → 外观 里调低模糊半径。
+- 只在 9.9.37-54395 实测；同系列小版本大概率通用，跨大版本需要重新确认特征码。
+- `version.dll` 会被每个加载 `QQNT.dll` 的进程加载并各 patch 一次，幂等。
+- 改的是本机安装的 QQ 客户端的自校验，仅用于加载本地插件。
+- `application.asar` 内部的 JS 是加密存储的，但 QQ 在 Node 加载器层透明解密，`require()` 拿到的是明文 —— 框架层不需要额外处理。
 
-## 上游与许可
+## 目录
 
-- 设计与实现：LilycleHeart，MIT License；
-- 本仓库只是针对 QQ 9.9.37 的兼容性补丁，未改变原主题的视觉设计。
+```
+.
+├── install.bat / install.ps1        安装
+├── uninstall.bat / uninstall.ps1    卸载
+├── version.dll                      校验绕过代理（编译产物）
+├── proxy/
+│   ├── version_proxy.cpp            代理源码（签名扫描 + 内存 patch + 转发）
+│   └── build.bat                    MSVC 构建
+└── LiteLoaderQQNT/                  1.4.1，仅一处 Node 24 兼容修复
+```
+
+## 许可
+
+- LiteLoaderQQNT 本体：MIT，LiteLoaderQQNT 组织；
+- `version.dll` 与安装脚本：本仓库新增，MIT。
