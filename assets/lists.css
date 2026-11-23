@@ -189,12 +189,11 @@ body .group-member .group-user[data-liuli-active] {
 body .group-member .group-user[data-liuli-active] .group-user__avatar {
   box-shadow: 0 0 0 1.5px rgba(var(--ll-brand-rgb), 0.6);
 }
+/* 原来这里是无限循环的 box-shadow 动画（最近 3 位发言者的头像呼吸）。
+ * box-shadow 不可合成，动画每帧都要重绘那一行 —— 而它长在群成员列表里，
+ * 列表的滚动和 hover 一直在和它抢绘制。改成静态光环：区分还在，重绘没了。 */
 body .group-member .group-user[data-liuli-active="hot"] .group-user__avatar {
-  animation: liuli-speaking 2.4s ease-in-out infinite;
-}
-@keyframes liuli-speaking {
-  0%, 100% { box-shadow: 0 0 0 1.5px var(--ll-brand), 0 0 3px rgba(var(--ll-brand-rgb), 0.45); }
-  50% { box-shadow: 0 0 0 1.5px var(--ll-brand), 0 0 10px rgba(var(--ll-brand-rgb), 0.9); }
+  box-shadow: 0 0 0 1.5px var(--ll-brand), 0 0 8px rgba(var(--ll-brand-rgb), 0.7);
 }
 
 @media (prefers-reduced-motion: reduce) {
