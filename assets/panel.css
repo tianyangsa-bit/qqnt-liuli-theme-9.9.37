@@ -56,9 +56,10 @@
   padding: 20px;
   border-radius: 20px;
   color: var(--ll-on-glass);
-  background: rgba(var(--ll-acrylic-high), 0.86);
-  backdrop-filter: blur(28px) saturate(1.8);
-  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  background: rgba(var(--ll-acrylic-high), 0.94);
+  /* 面板自己已经是 94% 不透明，模糊看不见、只在拖滚动条时拖帧。 */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(var(--ll-specular), 0.1);
   box-shadow: var(--ll-shadow-float);
   font-family: "MiSans", "Inter", system-ui, sans-serif;
@@ -356,9 +357,9 @@
   overflow: auto;
   padding: 22px 24px 20px;
   border-radius: 20px;
-  background: rgba(var(--ll-acrylic-high), 0.96);
-  backdrop-filter: blur(30px) saturate(1.8);
-  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  background: rgba(var(--ll-acrylic-high), 0.97);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(var(--ll-specular), 0.1);
   box-shadow: var(--ll-shadow-float);
   color: var(--ll-on-glass);
@@ -458,8 +459,8 @@
   padding: 12px;
   border-radius: var(--ll-radius);
   background: var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-material-opacity));
-  backdrop-filter: var(--ll-material-blur);
-  -webkit-backdrop-filter: var(--ll-material-blur);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .liuli-wp-title {
   font-size: 13px;
@@ -707,9 +708,10 @@
   padding: 4px;
   margin: 0 0 10px;
   border-radius: 14px;
-  background: rgba(var(--ll-acrylic), max(var(--ll-material-opacity, 0.86), 0.86));
-  backdrop-filter: var(--ll-material-blur);
-  -webkit-backdrop-filter: var(--ll-material-blur);
+  background: rgba(var(--ll-acrylic), max(var(--ll-material-opacity, 0.9), 0.9));
+  /* sticky 表头：滚动面板内容时它一直在重算自己背后的模糊。 */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   box-shadow: 0 1px 0 rgba(var(--ll-tint-rgb, var(--ll-specular)), 0.08),
     0 2px 10px rgba(var(--ll-shadow-rgb), 0.16);
 }
