@@ -1,0 +1,273 @@
+/* ============================================================
+ * 琉璃 · QQ token 全量语义化
+ * ------------------------------------------------------------
+ * QQ 的每个容器背景、文字、图标、标签、气泡、描边都来自它自己的
+ * token 变量（#color-tokens / #mix-tokens 里共 360 个）。上一版只覆盖
+ * 了 --bg_*（15 个），所以页面颜色仍然五花八门。
+ *
+ * 本文件把 96 个语义 token 全部按 M3 角色重新分配，
+ * 值全部指向 --ll-*（由 MCU 从壁纸源色实时派生）：
+ *
+ *   text_primary      → onSurface
+ *   text_secondary    → onSurfaceVariant
+ *   text_tertiary     → outlineVariant
+ *   text_link / brand → primary
+ *   tag_blue          → primary / primaryContainer
+ *   tag_orange        → tertiary
+ *   tag_red / error   → error
+ *   feedback_success  → tertiary
+ *   bubble_*          → acrylic / primary 容器
+ *   border / divider  → outlineVariant
+ *   overlay_*         → onSurface 低 alpha
+ *
+ * ─── 为什么放 body 而不是 :root ───────────────────────────
+ * QQ 在 :root 定义这些值；body 特异性更高，且能覆盖
+ * body[q-theme="dark"] 下的暗色定义。
+ * ============================================================ */
+
+body {
+  /* ── 文字 ── */
+  --text_primary: var(--ll-on-glass) !important;
+  --text_primary_light: var(--ll-on-glass-2) !important;
+  --text_secondary: var(--ll-on-glass-2) !important;
+  --text_secondary_01: var(--ll-on-glass-2) !important;
+  --text_secondary_02: var(--ll-on-glass-3) !important;
+  --text_tertiary: var(--ll-on-glass-3) !important; /* 原来是 on-glass-4（outlineVariant，描边色），三级文字几乎看不见 */
+  --text_link: var(--ll-brand) !important;
+  --text_black: var(--ll-on-glass) !important;
+  /* 反色文字（在品牌色实底上）保持白 */
+  --text_white: var(--ll-on-brand) !important;
+  --text_allwhite_primary: var(--ll-on-brand) !important;
+
+  /* ── 图标 ── */
+  --icon_primary: var(--ll-on-glass) !important;
+  --icon_black: var(--ll-on-glass) !important;
+  --icon_secondary: var(--ll-on-glass-2) !important;
+  --icon_secondary_01: var(--ll-on-glass-2) !important;
+  --icon_secondary_02: var(--ll-on-glass-3) !important;
+  --icon_tertiary: var(--ll-on-glass-3) !important;
+  --icon_brand: var(--ll-brand) !important;
+  --icon_red: var(--ll-danger) !important;
+  --icon_success: var(--ll-success) !important;
+  --icon_warning: var(--ll-warn) !important;
+  --icon_error: var(--ll-danger) !important;
+  --icon_white: var(--ll-on-brand) !important;
+
+  /* ── 品牌 ── */
+  --brand_standard: var(--ll-brand) !important;
+  --brand_text: var(--ll-brand) !important;
+  --brand_light: rgba(var(--ll-brand-rgb), 0.2) !important;
+  --on_brand_primary: var(--ll-on-brand) !important;
+  --on_brand_secondary: var(--ll-on-brand) !important;
+
+  /* ── 填充 ── */
+  --fill_standard_primary: rgba(var(--ll-on-glass-rgb), 0.2) !important;
+  --fill_standard_secondary: rgba(var(--ll-on-glass-rgb), 0.08) !important;
+  --fill_light_primary: transparent !important;
+  --fill_light_secondary: transparent !important;
+  --fill_search_light: rgba(var(--ll-on-glass-rgb), 0.1) !important;
+  --fill_search_dark: rgba(var(--ll-on-glass-rgb), 0.1) !important;
+
+  /* ── 描边与分隔 ── */
+  --border_primary: var(--ll-stroke-2) !important;
+  --border_standard: var(--ll-stroke-2) !important;
+  --border_secondary: var(--ll-stroke-2) !important;
+  --border_dark: var(--ll-stroke-1) !important;
+  --border_light: var(--ll-stroke-2) !important;
+  --border_white: transparent !important;
+  --divider_standard: var(--ll-stroke-2) !important;
+  --divider_dark: var(--ll-stroke-1) !important;
+  --divider_brand: var(--ll-brand-line) !important;
+
+  /* ── 交互遮罩 ── */
+  --overlay_hover: rgba(var(--ll-on-glass-rgb), 0.07) !important;
+  --overlay_active: rgba(var(--ll-on-glass-rgb), 0.12) !important;
+  --overlay_pressed: rgba(var(--ll-on-glass-rgb), 0.16) !important;
+  --overlay_top: rgba(var(--ll-on-glass-rgb), 0.06) !important;
+  --overlay_hover_brand: rgba(var(--ll-brand-rgb), 0.1) !important;
+  --overlay_active_brand: var(--ll-brand) !important;
+  --overlay_pressed_brand: rgba(var(--ll-brand-rgb), 0.24) !important;
+  --overlay_allblack_hover: rgba(var(--ll-tint-rgb), 0.06) !important;
+  --overlay_allblack_pressed: rgba(var(--ll-tint-rgb), 0.1) !important;
+  --overlay_mask_standard: rgba(var(--ll-scrim-rgb), 0.5) !important;
+  --overlay_mask_dark: rgba(var(--ll-scrim-rgb), 0.6) !important;
+  --overlay_mask_aio: transparent !important;
+
+  /* ── 列表悬停 ── */
+  --hover-list: rgba(var(--ll-on-glass-rgb), 0.07) !important;
+  --press-list: rgba(var(--ll-on-glass-rgb), 0.12) !important;
+  --hover-icon: rgba(var(--ll-on-glass-rgb), 0.08) !important;
+  --press-icon: rgba(var(--ll-on-glass-rgb), 0.14) !important;
+  --hover-link: var(--ll-brand-hover) !important;
+  --press-link: var(--ll-brand-pressed) !important;
+
+  /* ── 背景：全部打透，让壁纸透出 ── */
+  --bg_grey_standard: transparent !important;
+  --bg_white: transparent !important;
+  --bg_list: transparent !important;
+  --bg_nav: transparent !important;
+  --bg_nav_secondary: transparent !important;
+  --bg_bottom_standard: transparent !important;
+  --bg_bottom_light: transparent !important;
+  --bg_middle_standard: transparent !important;
+  --bg_middle_light: transparent !important;
+  --bg_top_standard: transparent !important;
+  --bg_top_light: transparent !important;
+  --bg_aio_1: transparent !important;
+  --bg_aio_2: transparent !important;
+  --bg_aio_3: transparent !important;
+  --bg_aio_4: transparent !important;
+  --sidebar_win: transparent !important;
+  --sidebar_mac: transparent !important;
+
+  /* ── 旧式 background-0x ── */
+  --background-01: transparent !important;
+  --background-02: transparent !important;
+  --background-03: transparent !important;
+  --background-04: transparent !important;
+  --background-05: transparent !important;
+  --background-dialogue: transparent !important;
+
+  /* ── 气泡：亚克力 / 品牌容器 ── */
+  --bubble_guest: rgba(var(--ll-acrylic), calc(var(--ll-material-opacity) + 0.12)) !important;
+  --bubble_guest_text: var(--ll-on-glass) !important;
+  --bubble_host: rgba(var(--ll-brand-rgb), 0.22) !important;
+  --bubble_host_text: var(--ll-on-glass) !important;
+  --bubble_host_1: var(--ll-brand) !important;
+  --bubble_host_2: var(--ll-brand) !important;
+  --on_bubble_host_text: var(--ll-on-glass) !important;
+  --on_bg_text: var(--ll-on-glass-2) !important;
+
+  /* ── 徽标 ── */
+  --badge-brand: var(--ll-brand) !important;
+  --badge-red: var(--ll-danger) !important;
+  --badge-grey: var(--ll-on-glass-2) !important;
+
+  /* ── 状态反馈 ── */
+  --feedback_error: var(--ll-danger) !important;
+  --feedback_success: var(--ll-success) !important;
+  --feedback_warning: var(--ll-warn) !important;
+  --el-color-success: var(--ll-success) !important;
+  --el-color-warning: var(--ll-warn) !important;
+  --el-color-danger: var(--ll-danger) !important;
+  --el-color-error: var(--ll-danger) !important;
+
+  /* ── 标签：按 M3 container / onContainer 配对 ── */
+  --tag_blue_bg: rgba(var(--ll-brand-rgb), 0.2) !important;
+  --tag_blue_text: var(--ll-brand) !important;
+  --tag_blue: rgba(var(--ll-brand-rgb), 0.2) !important;
+  --tag_orange_bg: rgba(var(--ll-brand-rgb), 0.14) !important;
+  --tag_orange_text: var(--ll-tertiary) !important;
+  --tag_purple_bg: rgba(var(--ll-brand-rgb), 0.12) !important;
+  --tag_purple_text: var(--ll-secondary) !important;
+  --tag_red_bg: rgba(var(--ll-danger-rgb), 0.2) !important;
+  --tag_red_text: var(--ll-danger) !important;
+  --tag_red: rgba(var(--ll-danger-rgb), 0.2) !important;
+  --tag_gray_bg: rgba(var(--ll-on-glass-rgb), 0.12) !important;
+  --tag_gray_text: var(--ll-on-glass-2) !important;
+  --tag_sage_green_bg: rgba(var(--ll-on-glass-rgb), 0.12) !important;
+  --tag_sage_green_text: var(--ll-on-glass-2) !important;
+
+  /* ── 按钮 ── */
+  --button-primary-default: var(--ll-brand) !important;
+  --button-primary-hover: var(--ll-brand-hover) !important;
+  --button-primary-pressed: var(--ll-brand-pressed) !important;
+  --button-primary-disable: rgba(var(--ll-brand-rgb), 0.32) !important;
+  --button-secondary-default: rgba(var(--ll-on-glass-rgb), 0.1) !important;
+  --button-secondary-hover: rgba(var(--ll-on-glass-rgb), 0.16) !important;
+  --button-secondary-pressed: rgba(var(--ll-on-glass-rgb), 0.22) !important;
+  --button-secondary-disable: rgba(var(--ll-on-glass-rgb), 0.05) !important;
+  --button-white-default: rgba(var(--ll-tint-rgb), 0.12) !important;
+  --button-white-hover: rgba(var(--ll-tint-rgb), 0.18) !important;
+  --button-white-pressed: rgba(var(--ll-tint-rgb), 0.24) !important;
+  --button-white-disable: rgba(var(--ll-tint-rgb), 0.06) !important;
+  --button-error-default: var(--ll-danger) !important;
+  --button-error-hover: var(--ll-danger-bg) !important;
+  --button-error-pressed: var(--ll-danger) !important;
+  --button-error-disable: rgba(var(--ll-danger-rgb), 0.32) !important;
+
+  /* ── 线 ── */
+  --line_light: var(--ll-stroke-2) !important;
+  --line_standard: var(--ll-stroke-2) !important;
+  --line_dark: var(--ll-stroke-1) !important;
+  --line_brand: var(--ll-brand-line) !important;
+}
+
+/* 暗色下只需调整「反色」语义：亮底 → 暗字，暗底 → 亮字 */
+body[q-theme="dark"]:not([data-liuli-dark="0"]),
+body.q-theme-tokens-dark:not([data-liuli-dark="0"]),
+body[data-liuli-dark="1"] {
+  --text_black: var(--ll-on-glass) !important;
+  --icon_black: var(--ll-on-glass) !important;
+  --bubble_guest: rgba(var(--ll-acrylic), calc(var(--ll-material-opacity) + 0.12)) !important;
+  --bubble_guest_text: var(--ll-on-glass) !important;
+  --bubble_host: rgba(var(--ll-brand-rgb), 0.22) !important;
+  --bubble_host_text: var(--ll-on-glass) !important;
+  --on_bubble_host_text: var(--ll-on-glass) !important;
+  --overlay_mask_standard: rgba(var(--ll-scrim-rgb), 0.55) !important;
+}
+
+/* ── QQ 旧版 token（连字符 / 下划线数字写法）──
+ * QQ 还有一套老 token（--text-primary、--text-link、--background_02 …），只有一份写死的值，
+ * 不跟主题走：QQ 暗色下 --text-primary 是 #FFFFFF、--text-link 是 #2d77e5。
+ * 琉璃亮色时用到它们的地方就是白字压浅底、链接蓝色和品牌色对不上
+ * （2026-11-01 实测：@ 成员选择框的「全选」只有 3.1:1）。这里按 M3 角色重新接上。
+ * 只接了实测在 QQ 样式里被用到的；--text-white / --icon-white 用在图片蒙层、彩色标签上，保持白色。 */
+body {
+  --text-primary: var(--ll-on-glass) !important;
+  --text-primary-light: var(--ll-on-glass-2) !important;
+  --text-secondary-01: var(--ll-on-glass-2) !important;
+  --text-secondary-02: var(--ll-on-glass-3) !important;
+  --text-brand: var(--ll-brand) !important;
+  --text-link: var(--ll-link, var(--ll-brand)) !important;
+  --text-error: var(--ll-danger) !important;
+  --text-success: var(--ll-success) !important;
+  --text-warning: var(--ll-warn) !important;
+  --icon-primary: var(--ll-on-glass-2) !important;
+  --icon-secondary-01: var(--ll-on-glass-2) !important;
+  --icon-secondary-02: var(--ll-on-glass-3) !important;
+  --icon-brand: var(--ll-brand) !important;
+  --icon-error: var(--ll-danger) !important;
+  --icon-success: var(--ll-success) !important;
+  --icon-warning: var(--ll-warn) !important;
+  --divider-brand: var(--ll-brand-line) !important;
+  --divider-light: var(--ll-stroke-2) !important;
+  --divider-standard: var(--ll-stroke-2) !important;
+  --list-hover: rgba(var(--ll-tint-rgb, var(--ll-specular)), 0.07) !important;
+  --list-pressed: rgba(var(--ll-tint-rgb, var(--ll-specular)), 0.12) !important;
+  /* 输入框里的引用块、选中的图片底：surfaceContainerHigh */
+  --background_02: var(--ll-surface-high) !important;
+  /* 长消息卡片、红包蒙层 */
+  --background_05: var(--ll-surface-mid) !important;
+  --background_dialogue: var(--ll-popup-bg) !important;
+  /* 文件卡片、推荐消息等浮在消息上的底 */
+  --blur_middle_standard: rgba(var(--ll-acrylic-high), 0.9) !important;
+  /* 自己点过的表情回应、语音转文字块：跟自己的气泡同色 */
+  --host_bubble_bg_css_value: var(--ll-bubble-self, var(--ll-primary-container)) !important;
+  /* 只用在撤回提示的「重新编辑」上，当链接色用 */
+  --bubble-host: var(--ll-link, var(--ll-brand)) !important;
+}
+
+/* ── #27.4 红包蒙层不要跟着壁纸走（2026-11-06）──────────────────────────
+ * 上面第 240-241 行把 --background_05 换成了 --ll-surface-mid，原始注释写明它被
+ * 「长消息卡片、红包蒙层」共用。核实 QQ 自身的 CSS 后确认两处实际用法：
+ *   .long-struct-message__inner { background-color: var(--background_05); }   ← 长消息卡片
+ *   .lucky-money__mask         { background-color: var(--background_05); opacity: .4 }  ← 红包卡片蒙层
+ * （依据：liuli-promo/replica/main.html:4075 / :4219，那份文件是 QQ 真机样式快照）
+ * 于是红包卡片上多出一层壁纸色的 40% 罩子 —— 就是用户 #27 第 4 条截图里的「红包背景被误伤」。
+ *
+ * 长消息卡片还要用这个新色，不能撤掉上面的全局覆盖；
+ * 所以在红包作用域内把 token 还原成 QQ 原值（亮色 #FFFFFF / 暗色 #000000，
+ * 与 QQ 自己的 .q-theme-tokens-light/dark 里 --background-05 的值一致）。
+ * 作用域用类名前缀 lucky-money：红包卡片内部所有 lucky-money__* 都跟着还原，
+ * 长消息卡片不在这个作用域里，不受影响。
+ * ⚠️ 未真机验证：取证时本机会话里没有红包消息，无法打开实测；
+ *   选择器取自 QQ 自己的 CSS 快照，若打开红包的详情页换了类名需补选择器。 */
+body [class*="lucky-money"] {
+  --background_05: #ffffff !important;
+}
+body[q-theme="dark"]:not([data-liuli-dark="0"]) [class*="lucky-money"],
+body.q-theme-tokens-dark:not([data-liuli-dark="0"]) [class*="lucky-money"],
+body[data-liuli-dark="1"] [class*="lucky-money"] {
+  --background_05: #000000 !important;
+}
