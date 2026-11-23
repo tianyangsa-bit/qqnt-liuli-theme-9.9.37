@@ -19,7 +19,9 @@
 /* ── 材质令牌：全站唯一来源 ── */
 :root {
   --ll-material-opacity: 0.55;
-  --ll-material-blur: blur(18px) saturate(1.6);
+  /* 保留的承载层共用这一档。18px → 9px：模糊成本随半径增长，
+   * 大面板上降一半半径，观感几乎不变，GPU 时间少一大截。 */
+  --ll-material-blur: blur(9px) saturate(1.35);
 
   /* DSH 的亚克力底（固定值，不跟 M3 走） */
   --ll-acrylic: 221, 229, 237;
@@ -113,9 +115,9 @@ body::after {
  * （ProseMirror 编辑器）在某些层叠条件下完全不绘制，
  * 表现就是「输入框消失」。输入区的背景改由 input-bar.css 单独给。 */
 .right-sidebar,
-/* 右栏承载层：.group-box (180x800) 同时覆盖群公告与群成员，
- * 只挂这一块材质；里面的 .group-notice / .group-member / .group-user 全透明。 */
-.group-box,
+/* 右栏承载层：模糊只挂 .right-sidebar 这一层。.group-box（180x800，覆盖群公告
+ * 与群成员）原来也挂了同样的模糊 —— 嵌套两层 backdrop-filter，群成员列表的
+ * 每一下 hover 都要排在两层重新模糊后面。它的底色单独给（见下方 .group-box）。 */
 /* 左下角用户资料卡。必须排除 .topbar-profile —— 顶部标题栏里那个同名元素
  * 宽 1797px，一起加材质会变成横贯窗口的玻璃长条。 */
 .user-profile-card:not(.topbar-profile),
@@ -123,6 +125,17 @@ body::after {
   background: rgba(var(--ll-acrylic), var(--ll-material-opacity)) !important;
   backdrop-filter: var(--ll-material-blur) !important;
   -webkit-backdrop-filter: var(--ll-material-blur) !important;
+  border-radius: var(--ll-radius) !important;
+  box-shadow: var(--ll-shadow) !important;
+}
+
+/* 群成员 / 群公告面板：只要底色，不挂模糊。
+ * 外层 .right-sidebar 已经把壁纸模糊过了，这里再来一层就是纯浪费 ——
+ * 成员列表的 hover 反馈延迟就是这两层叠出来的。 */
+.group-box {
+  background: rgba(var(--ll-acrylic), var(--ll-material-opacity)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-radius: var(--ll-radius) !important;
   box-shadow: var(--ll-shadow) !important;
 }
@@ -264,8 +277,10 @@ body[data-liuli-dark="0"] .q-tag--orange .title {
 
 .msg-content-container {
   border-radius: var(--ll-radius) !important;
-  backdrop-filter: blur(12px) saturate(1.4) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
+  /* 气泡不挂 backdrop-filter：聊天区同时有几十条气泡，就是几十块独立模糊，
+   * 滚动、悬浮、切会话全在等它们重算。气泡底色本来就接近不透明，去掉无视觉差异。 */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   box-shadow: 0 1px 6px rgba(var(--ll-shadow-rgb, 0, 0, 0), 0.16) !important;
 }
 
@@ -362,9 +377,11 @@ a,
 .q-context-menu,
 .q-dialog,
 [class*="popover"] {
-  background: rgba(var(--ll-acrylic-high), 0.94) !important;
-  backdrop-filter: blur(28px) saturate(1.8) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(1.8) !important;
+  /* 弹层是 hover 最密集的表面，28px 模糊让每一下悬浮都排在模糊后面。
+   * 底色抬到 0.97 之后，模糊与否肉眼分辨不出。 */
+  background: rgba(var(--ll-acrylic-high), 0.97) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-radius: var(--ll-radius) !important;
   box-shadow: var(--ll-shadow-float) !important;
 }
