@@ -238,3 +238,54 @@ body[data-liuli-scope="main"] .empty-panel,
 body[data-liuli-scope="main"] .empty-panel * {
   -webkit-app-region: no-drag !important;
 }
+
+/* ════════════════════════════════════════════════════════════
+ * 列表滑翔高亮
+ * ------------------------------------------------------------
+ * 一块固定在 body 上的高亮层，跟着指针在列表行之间平移。
+ * 同列表内连续滑动，跨列表直接跳位；滚动时隐藏，停手后重新吸附。
+ * 原生 :hover 背景在这里让位（否则两层叠加）。
+ * ════════════════════════════════════════════════════════════ */
+#liuli-glide {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147482900;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(var(--ll-brand-rgb), 0.10);
+  transition:
+    transform var(--ll-glide-ms, 170ms) cubic-bezier(0.22, 1, 0.36, 1),
+    width var(--ll-glide-ms, 170ms) cubic-bezier(0.22, 1, 0.36, 1),
+    height var(--ll-glide-ms, 170ms) cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius var(--ll-glide-ms, 170ms) cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 110ms ease;
+  will-change: transform, opacity;
+}
+#liuli-glide[data-tone="brand-strong"] { background: rgba(var(--ll-brand-rgb), 0.14); }
+#liuli-glide[data-tone="tint"] { background: rgba(var(--ll-tint-rgb), 0.07); }
+#liuli-glide.ll-glide-jump { transition: opacity 110ms ease !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #liuli-glide { transition: none !important; }
+}
+
+/* 原生 hover 底色让位给滑翔层。选中项 / 激活项保持自己的实底。 */
+body[data-liuli-glide="1"] .recent-contact-item:hover:not(.recent-contact-item--selected):not(#ll),
+body[data-liuli-glide="1"] .recent-contact-item:hover:not(.recent-contact-item--selected) .item:not(#ll),
+body[data-liuli-glide="1"] .group-member .group-user:hover .group-user__content:not(#ll),
+body[data-liuli-glide="1"] .q-context-menu-item:hover:not(#ll),
+body[data-liuli-glide="1"] .nav-item:hover:not(.nav-item-active):not(#ll) {
+  background: transparent !important;
+}
+
+/* QQ 9.9.37 的会话悬停底色不在行上，画在 .item__content::before（probe 实测，
+ * 选择器形如 .recent-contact-item:hover .item__content[data-v-…]::before）。
+ * 只清没有未读角标的行：有角标的行上，同一个伪元素被我们画成了左缘微光，
+ * 动它会闪。 */
+body[data-liuli-glide="1"] .recent-contact-item:hover:not(.recent-contact-item--selected):not(:has(.q-badge-num)) .item__content:not(#ll)::before {
+  background: transparent !important;
+  box-shadow: none !important;
+}
