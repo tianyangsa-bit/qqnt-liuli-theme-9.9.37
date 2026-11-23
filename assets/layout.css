@@ -322,9 +322,9 @@ body[data-liuli-scope="main"]:not([data-liuli-tb="native"]) .window-title-bar .w
  * 在元素自身改写变量即可，不用和内联 !important 抢。 */
 .global-container .container-content > .container-sidebar:hover,
 .global-container .container-content > .container-sidebar:has(:focus-visible) {
+  /* 只改不透明度。别在这里换模糊半径 —— 每次 hover 都会重建一次模糊表面，
+   * 导航滑出时的那一下卡顿就是它。 */
   --ll-material-opacity: 0.92;
-  backdrop-filter: blur(24px) saturate(1.6) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.6) !important;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -548,10 +548,6 @@ body[data-liuli-scope="main"] .global-container .container-content > .container-
   box-shadow: var(--ll-card-shadow), var(--ll-shadow-float) !important;
   --ll-material-opacity: 0.92;
 }
-body[data-liuli-scope="main"][data-liuli-r-nav] .global-container .container-content > .container-sidebar {
-  backdrop-filter: blur(24px) saturate(1.6) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.6) !important;
-}
 /* 旧的 6px 露边提示条不要了 */
 body[data-liuli-scope="main"] .global-container .container-content > .container-sidebar::after {
   content: none !important;
@@ -637,8 +633,8 @@ body .chat-input-area > .chat-func-bar.liuli-expanded {
 /* 展开的导航盖在会话列表正上方，跟着 0.4 这类低不透明度会看不清下面的字，保持原来的 90% + 28px 模糊 */
 body[data-liuli-r-nav] .global-container .container-content > .container-sidebar.container-sidebar {
   background: var(--ll-noise), rgba(var(--ll-acrylic), 0.9) !important;
-  backdrop-filter: blur(28px) saturate(1.6) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(1.6) !important;
+  backdrop-filter: blur(10px) saturate(1.35) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.35) !important;
   box-shadow: var(--ll-float-shadow) !important;
 }
 
@@ -912,8 +908,15 @@ body:not([data-liuli-scope="main"]) #app::after {
   z-index: -1;
   pointer-events: none;
   background: var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-aux-opacity, 0.72));
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+}
+/* 设置窗口：整窗模糊 + 内容区滚动 = 每一帧重算整块高斯模糊。
+ * 这是设置页把 JS 精简到只剩自身刷新之后还卡的原因。底色抬到 0.9 保留质感。 */
+body[data-liuli-scope="setting"] #app::after {
+  background: var(--ll-noise), rgba(var(--ll-acrylic), 0.9) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 /* 语音 / 视频通话窗口（#/av）不铺壁纸和材质（#9，2026-11-01 实测）：
  * 这个窗口的成员画面和一个原生 <embed> 视频层一起合成，#app 一旦 isolation:isolate，
@@ -980,7 +983,9 @@ body .contact-layout .sys-notify .sys-notify-card:not(#ll):hover {
  * material-blur-strong 档（盖在别的内容上时，下面的字要糊掉才读得清）。 */
 body {
   --ll-card-bg: var(--ll-noise), rgba(var(--ll-acrylic), var(--ll-material-opacity));
-  --ll-card-blur-strong: blur(40px) saturate(1.6);
+  /* 40px 是全站最贵的一档，而且都挂在会持续重绘的表面（输入区 ::before 在
+   * 打字时每帧重画）。降到 10px，盖在内容上照样糊得住。 */
+  --ll-card-blur-strong: blur(10px) saturate(1.35);
 }
 body[data-liuli-r-nav] .global-container .container-content > .container-sidebar.container-sidebar {
   --ll-material-opacity: inherit;
@@ -1427,8 +1432,8 @@ body .aio .side-panel:not(#ll)::before {
   pointer-events: none;
   border-radius: inherit;
   background: var(--ll-noise), rgba(var(--ll-acrylic), 0.9);
-  backdrop-filter: blur(28px) saturate(1.6);
-  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  backdrop-filter: blur(10px) saturate(1.35);
+  -webkit-backdrop-filter: blur(10px) saturate(1.35);
 }
 body .aio .side-panel .group-profile-card:not(#ll),
 body .aio .side-panel .group-member-card:not(#ll),
